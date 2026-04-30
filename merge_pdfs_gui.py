@@ -18,7 +18,7 @@ except ImportError:
     )
     sys.exit(1)
 
-from split_pdf import split_pdf
+from split_pdf import split_pdf, split_pdf_custom
 
 
 class PdfMergerApp:
@@ -171,20 +171,49 @@ class PdfMergerApp:
         )
         ttk.Button(input_inner, text="Browse…", command=self._split_browse_input).pack(side=tk.LEFT)
 
-        # Pages per file
+        # Split Options
         pages_frame = ttk.LabelFrame(parent, text="Split Options", padding=8)
         pages_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(pages_frame, text="Pages per output file:").pack(side=tk.LEFT, padx=(0, 8))
+        # Mode toggle
+        self.split_mode_var = tk.StringVar(value="uniform")
+        mode_row = ttk.Frame(pages_frame)
+        mode_row.pack(fill=tk.X, pady=(0, 6))
+        ttk.Radiobutton(
+            mode_row, text="Uniform — same number of pages per file",
+            variable=self.split_mode_var, value="uniform",
+            command=self._on_split_mode_change,
+        ).pack(side=tk.LEFT, padx=(0, 16))
+        ttk.Radiobutton(
+            mode_row, text="Custom — specify page counts",
+            variable=self.split_mode_var, value="custom",
+            command=self._on_split_mode_change,
+        ).pack(side=tk.LEFT)
+
+        # Uniform row
+        self._uniform_row = ttk.Frame(pages_frame)
+        self._uniform_row.pack(fill=tk.X, pady=(0, 2))
+        ttk.Label(self._uniform_row, text="Pages per output file:").pack(side=tk.LEFT, padx=(0, 8))
         self.pages_per_file_var = tk.IntVar(value=1)
-        spinbox = ttk.Spinbox(
-            pages_frame,
+        ttk.Spinbox(
+            self._uniform_row,
             from_=1,
             to=9999,
             textvariable=self.pages_per_file_var,
             width=8,
+        ).pack(side=tk.LEFT)
+
+        # Custom row
+        self._custom_row = ttk.Frame(pages_frame)
+        self._custom_row.pack(fill=tk.X, pady=(0, 2))
+        ttk.Label(self._custom_row, text="Page counts (comma-separated, e.g. 2,1,2):").pack(
+            side=tk.LEFT, padx=(0, 8)
         )
-        spinbox.pack(side=tk.LEFT)
+        self.custom_split_var = tk.StringVar()
+        ttk.Entry(self._custom_row, textvariable=self.custom_split_var, width=20).pack(side=tk.LEFT)
+
+        # Start in uniform mode
+        self._on_split_mode_change()
 
         # Output directory selection
         out_frame = ttk.LabelFrame(parent, text="Output Directory", padding=8)
@@ -201,6 +230,16 @@ class PdfMergerApp:
 
         # Split button
         ttk.Button(parent, text="Split PDF", command=self._split).pack(fill=tk.X)
+
+    def _on_split_mode_change(self):
+        mode = self.split_mode_var.get()
+        # Enable/disable widgets in each row to give visual feedback
+        state_uniform = "normal" if mode == "uniform" else "disabled"
+        state_custom = "normal" if mode == "custom" else "disabled"
+        for child in self._uniform_row.winfo_children():
+            child.configure(state=state_uniform)
+        for child in self._custom_row.winfo_children():
+            child.configure(state=state_custom)
 
     def _split_browse_input(self):
         path = filedialog.askopenfilename(
@@ -226,29 +265,58 @@ class PdfMergerApp:
             messagebox.showwarning("PDF Splitter", "Please select an output directory.")
             return
 
-        try:
-            pages_per_file = int(self.pages_per_file_var.get())
-        except (ValueError, tk.TclError):
-            messagebox.showwarning("PDF Splitter", "Please enter a valid number of pages per file.")
-            return
+        mode = self.split_mode_var.get()
 
-        if pages_per_file < 1:
-            messagebox.showwarning("PDF Splitter", "Pages per file must be at least 1.")
-            return
+        if mode == "uniform":
+            try:
+                pages_per_file = int(self.pages_per_file_var.get())
+            except (ValueError, tk.TclError):
+                messagebox.showwarning("PDF Splitter", "Please enter a valid number of pages per file.")
+                return
+            if pages_per_file < 1:
+                messagebox.showwarning("PDF Splitter", "Pages per file must be at least 1.")
+                return
+            try:
+                created_files = split_pdf(input_path, pages_per_file, output_dir)
+            except SystemExit:
+                return
+            except Exception as e:
+                messagebox.showerror("PDF Splitter", f"Error splitting file:\n{e}")
+                return
+        else:
+            raw = self.custom_split_var.get().strip()
+            if not raw:
+                messagebox.showwarning(
+                    "PDF Splitter",
+                    "Please enter a comma-separated list of page counts\n(e.g. 2,1,2).",
+                )
+                return
+            try:
+                page_counts = [int(x.strip()) for x in raw.split(",") if x.strip()]
+            except ValueError:
+                messagebox.showwarning(
+                    "PDF Splitter",
+                    "Page counts must be integers separated by commas\n(e.g. 2,1,2).",
+                )
+                return
+            if any(c < 1 for c in page_counts):
+                messagebox.showwarning("PDF Splitter", "Every page count must be at least 1.")
+                return
+            try:
+                created_files = split_pdf_custom(input_path, page_counts, output_dir)
+            except SystemExit:
+                return
+            except Exception as e:
+                messagebox.showerror("PDF Splitter", f"Error splitting file:\n{e}")
+                return
 
-        try:
-            created_files = split_pdf(input_path, pages_per_file, output_dir)
-            files_list = "\n".join(Path(f).name for f in created_files)
-            messagebox.showinfo(
-                "PDF Splitter",
-                f"Successfully split '{Path(input_path).name}' into {len(created_files)} file(s)!\n\n"
-                f"Saved to:\n{output_dir}\n\n"
-                f"Files created:\n{files_list}",
-            )
-        except SystemExit:
-            pass  # split_pdf already printed an error message
-        except Exception as e:
-            messagebox.showerror("PDF Splitter", f"Error splitting file:\n{e}")
+        files_list = "\n".join(Path(f).name for f in created_files)
+        messagebox.showinfo(
+            "PDF Splitter",
+            f"Successfully split '{Path(input_path).name}' into {len(created_files)} file(s)!\n\n"
+            f"Saved to:\n{output_dir}\n\n"
+            f"Files created:\n{files_list}",
+        )
 
 
 def main():

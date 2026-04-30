@@ -7,7 +7,7 @@ A simple tool to merge multiple PDF files into one, or split a single PDF into s
 ## Features
 
 - Merge two or more PDF files into a single output file
-- **Split a single PDF into multiple smaller files** by specifying pages per file
+- **Split a single PDF into multiple smaller files** — uniform chunks or fully custom page counts per file
 - CLI mode for scripting and automation
 - GUI mode for a point-and-click experience (built with tkinter)
 - Reorder files before merging (GUI)
@@ -45,7 +45,9 @@ The GUI has two tabs:
 
 **Split PDF tab:**
 1. Click **Browse…** next to *Input PDF File* to select the PDF you want to split.
-2. Set **Pages per output file** (e.g. `3` to create one file per 3 pages).
+2. Choose a split mode:
+   - **Uniform** — enter a single number in *Pages per output file* (e.g. `3`). Every output file gets that many pages (the last one gets the remainder).
+   - **Custom** — enter a comma-separated list of page counts (e.g. `2,1,2`) to produce output files of exactly those sizes.
 3. Click **Browse…** next to *Output Directory* to choose where to save the split files.
 4. Click **Split PDF**. Output files are named `<original>_part_1.pdf`, `<original>_part_2.pdf`, etc.
 
@@ -70,14 +72,28 @@ python merge_pdfs.py file1.pdf file2.pdf -o combined.pdf
 
 ### CLI — Split
 
+**Uniform split** — same number of pages per file:
+
 ```bash
 python split_pdf.py input.pdf -n 5
 ```
 
-This splits `input.pdf` into chunks of 5 pages each, saving `input_part_1.pdf`, `input_part_2.pdf`, … in the current directory.
+This splits `input.pdf` into chunks of 5 pages each.
+
+**Custom split** — specify individual page counts with `--split`:
 
 ```bash
+# 5-page PDF → file with 2 pages, file with 1 page, file with 2 pages
+python split_pdf.py input.pdf --split 2,1,2
+
+# 5-page PDF → 1 + 2 + 1 + 1 pages
+python split_pdf.py input.pdf --split 1,2,1,1
+```
+
+```bash
+# optional: custom output dir and prefix
 python split_pdf.py input.pdf -n 10 -o ./output_dir -p chapter
+python split_pdf.py input.pdf --split 3,2,5 -o ./output_dir
 ```
 
 #### CLI split options
@@ -85,7 +101,8 @@ python split_pdf.py input.pdf -n 10 -o ./output_dir -p chapter
 | Option | Description |
 |---|---|
 | `input` | PDF file to split |
-| `-n`, `--pages-per-file` | Number of pages per output file **(required)** |
+| `-n`, `--pages-per-file` | Split into equal chunks of N pages each *(use this **or** `--split`)* |
+| `-s`, `--split` | Comma-separated page counts per output file, e.g. `2,1,2` *(use this **or** `-n`)* |
 | `-o`, `--output-dir` | Output directory (default: current directory) |
 | `-p`, `--prefix` | Output filename prefix (default: input filename without extension) |
 
