@@ -142,8 +142,6 @@ def split_pdf_custom(
     chunks: list[list[int]] = []
     cursor = 0
     for i, count in enumerate(page_counts):
-        if cursor >= total_pages:
-            break
         if i == len(page_counts) - 1:
             # Last requested chunk gets all remaining pages
             end = total_pages
