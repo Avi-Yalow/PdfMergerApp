@@ -1,4 +1,4 @@
-"""PDF Merge Tool - GUI version using tkinter."""
+"""PDF Merger & Splitter Tool - GUI version using tkinter."""
 
 import sys
 import tkinter as tk
@@ -18,29 +18,43 @@ except ImportError:
     )
     sys.exit(1)
 
+from split_pdf import split_pdf, split_pdf_custom
+
 
 class PdfMergerApp:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("PDF Merger")
-        self.root.geometry("600x450")
-        self.root.minsize(500, 350)
+        self.root.title("PDF Merger & Splitter")
+        self.root.geometry("600x500")
+        self.root.minsize(500, 400)
 
         self._build_ui()
 
     def _build_ui(self):
-        # Main frame
-        main_frame = ttk.Frame(self.root, padding=10)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # Notebook with two tabs
+        notebook = ttk.Notebook(self.root)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Title
-        ttk.Label(main_frame, text="PDF Merger", font=("Segoe UI", 16, "bold")).pack(pady=(0, 10))
+        merge_tab = ttk.Frame(notebook, padding=10)
+        split_tab = ttk.Frame(notebook, padding=10)
+
+        notebook.add(merge_tab, text="Merge PDFs")
+        notebook.add(split_tab, text="Split PDF")
+
+        self._build_merge_tab(merge_tab)
+        self._build_split_tab(split_tab)
+
+    # ------------------------------------------------------------------
+    # Merge tab
+    # ------------------------------------------------------------------
+
+    def _build_merge_tab(self, parent: ttk.Frame):
+        ttk.Label(parent, text="PDF Merger", font=("Segoe UI", 16, "bold")).pack(pady=(0, 10))
 
         # File list frame
-        list_frame = ttk.LabelFrame(main_frame, text="PDF Files (merged in order shown)", padding=5)
+        list_frame = ttk.LabelFrame(parent, text="PDF Files (merged in order shown)", padding=5)
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
-        # Listbox with scrollbar
         list_inner = ttk.Frame(list_frame)
         list_inner.pack(fill=tk.BOTH, expand=True)
 
@@ -53,8 +67,8 @@ class PdfMergerApp:
 
         self.file_paths: list[str] = []
 
-        # Buttons for file management
-        btn_frame = ttk.Frame(main_frame)
+        # File management buttons
+        btn_frame = ttk.Frame(parent)
         btn_frame.pack(fill=tk.X, pady=(0, 10))
 
         ttk.Button(btn_frame, text="Add Files", command=self._add_files).pack(side=tk.LEFT, padx=(0, 5))
@@ -63,8 +77,7 @@ class PdfMergerApp:
         ttk.Button(btn_frame, text="Move Up", command=self._move_up).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(btn_frame, text="Move Down", command=self._move_down).pack(side=tk.LEFT)
 
-        # Merge button
-        ttk.Button(main_frame, text="Merge PDFs", command=self._merge, style="Accent.TButton").pack(fill=tk.X)
+        ttk.Button(parent, text="Merge PDFs", command=self._merge).pack(fill=tk.X)
 
     def _add_files(self):
         files = filedialog.askopenfilenames(
@@ -137,6 +150,173 @@ class PdfMergerApp:
             messagebox.showinfo("PDF Merger", f"Successfully merged {len(self.file_paths)} files!\n\nSaved to:\n{output_path}")
         except Exception as e:
             messagebox.showerror("PDF Merger", f"Error merging files:\n{e}")
+
+    # ------------------------------------------------------------------
+    # Split tab
+    # ------------------------------------------------------------------
+
+    def _build_split_tab(self, parent: ttk.Frame):
+        ttk.Label(parent, text="PDF Splitter", font=("Segoe UI", 16, "bold")).pack(pady=(0, 10))
+
+        # Input file selection
+        input_frame = ttk.LabelFrame(parent, text="Input PDF File", padding=8)
+        input_frame.pack(fill=tk.X, pady=(0, 10))
+
+        input_inner = ttk.Frame(input_frame)
+        input_inner.pack(fill=tk.X)
+
+        self.split_input_var = tk.StringVar()
+        ttk.Entry(input_inner, textvariable=self.split_input_var, state="readonly").pack(
+            side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5)
+        )
+        ttk.Button(input_inner, text="Browse…", command=self._split_browse_input).pack(side=tk.LEFT)
+
+        # Split Options
+        pages_frame = ttk.LabelFrame(parent, text="Split Options", padding=8)
+        pages_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # Mode toggle
+        self.split_mode_var = tk.StringVar(value="uniform")
+        mode_row = ttk.Frame(pages_frame)
+        mode_row.pack(fill=tk.X, pady=(0, 6))
+        ttk.Radiobutton(
+            mode_row, text="Uniform — same number of pages per file",
+            variable=self.split_mode_var, value="uniform",
+            command=self._on_split_mode_change,
+        ).pack(side=tk.LEFT, padx=(0, 16))
+        ttk.Radiobutton(
+            mode_row, text="Custom — specify page counts",
+            variable=self.split_mode_var, value="custom",
+            command=self._on_split_mode_change,
+        ).pack(side=tk.LEFT)
+
+        # Uniform row
+        self._uniform_row = ttk.Frame(pages_frame)
+        self._uniform_row.pack(fill=tk.X, pady=(0, 2))
+        ttk.Label(self._uniform_row, text="Pages per output file:").pack(side=tk.LEFT, padx=(0, 8))
+        self.pages_per_file_var = tk.IntVar(value=1)
+        ttk.Spinbox(
+            self._uniform_row,
+            from_=1,
+            to=9999,
+            textvariable=self.pages_per_file_var,
+            width=8,
+        ).pack(side=tk.LEFT)
+
+        # Custom row
+        self._custom_row = ttk.Frame(pages_frame)
+        self._custom_row.pack(fill=tk.X, pady=(0, 2))
+        ttk.Label(self._custom_row, text="Page counts (comma-separated, e.g. 2,1,2):").pack(
+            side=tk.LEFT, padx=(0, 8)
+        )
+        self.custom_split_var = tk.StringVar()
+        ttk.Entry(self._custom_row, textvariable=self.custom_split_var, width=20).pack(side=tk.LEFT)
+
+        # Start in uniform mode
+        self._on_split_mode_change()
+
+        # Output directory selection
+        out_frame = ttk.LabelFrame(parent, text="Output Directory", padding=8)
+        out_frame.pack(fill=tk.X, pady=(0, 10))
+
+        out_inner = ttk.Frame(out_frame)
+        out_inner.pack(fill=tk.X)
+
+        self.split_output_dir_var = tk.StringVar()
+        ttk.Entry(out_inner, textvariable=self.split_output_dir_var, state="readonly").pack(
+            side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5)
+        )
+        ttk.Button(out_inner, text="Browse…", command=self._split_browse_output_dir).pack(side=tk.LEFT)
+
+        # Split button
+        ttk.Button(parent, text="Split PDF", command=self._split).pack(fill=tk.X)
+
+    def _on_split_mode_change(self):
+        mode = self.split_mode_var.get()
+        # Enable/disable widgets in each row to give visual feedback
+        state_uniform = "normal" if mode == "uniform" else "disabled"
+        state_custom = "normal" if mode == "custom" else "disabled"
+        for child in self._uniform_row.winfo_children():
+            child.configure(state=state_uniform)
+        for child in self._custom_row.winfo_children():
+            child.configure(state=state_custom)
+
+    def _split_browse_input(self):
+        path = filedialog.askopenfilename(
+            title="Select PDF file to split",
+            filetypes=[("PDF Files", "*.pdf"), ("All Files", "*.*")],
+        )
+        if path:
+            self.split_input_var.set(path)
+
+    def _split_browse_output_dir(self):
+        directory = filedialog.askdirectory(title="Select output directory")
+        if directory:
+            self.split_output_dir_var.set(directory)
+
+    def _split(self):
+        input_path = self.split_input_var.get().strip()
+        if not input_path:
+            messagebox.showwarning("PDF Splitter", "Please select a PDF file to split.")
+            return
+
+        output_dir = self.split_output_dir_var.get().strip()
+        if not output_dir:
+            messagebox.showwarning("PDF Splitter", "Please select an output directory.")
+            return
+
+        mode = self.split_mode_var.get()
+
+        if mode == "uniform":
+            try:
+                pages_per_file = int(self.pages_per_file_var.get())
+            except (ValueError, tk.TclError):
+                messagebox.showwarning("PDF Splitter", "Please enter a valid number of pages per file.")
+                return
+            if pages_per_file < 1:
+                messagebox.showwarning("PDF Splitter", "Pages per file must be at least 1.")
+                return
+            try:
+                created_files = split_pdf(input_path, pages_per_file, output_dir)
+            except SystemExit:
+                return
+            except Exception as e:
+                messagebox.showerror("PDF Splitter", f"Error splitting file:\n{e}")
+                return
+        else:
+            raw = self.custom_split_var.get().strip()
+            if not raw:
+                messagebox.showwarning(
+                    "PDF Splitter",
+                    "Please enter a comma-separated list of page counts\n(e.g. 2,1,2).",
+                )
+                return
+            try:
+                page_counts = [int(x.strip()) for x in raw.split(",") if x.strip()]
+            except ValueError:
+                messagebox.showwarning(
+                    "PDF Splitter",
+                    "Page counts must be integers separated by commas\n(e.g. 2,1,2).",
+                )
+                return
+            if any(c < 1 for c in page_counts):
+                messagebox.showwarning("PDF Splitter", "Every page count must be at least 1.")
+                return
+            try:
+                created_files = split_pdf_custom(input_path, page_counts, output_dir)
+            except SystemExit:
+                return
+            except Exception as e:
+                messagebox.showerror("PDF Splitter", f"Error splitting file:\n{e}")
+                return
+
+        files_list = "\n".join(Path(f).name for f in created_files)
+        messagebox.showinfo(
+            "PDF Splitter",
+            f"Successfully split '{Path(input_path).name}' into {len(created_files)} file(s)!\n\n"
+            f"Saved to:\n{output_dir}\n\n"
+            f"Files created:\n{files_list}",
+        )
 
 
 def main():
