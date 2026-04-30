@@ -1,0 +1,1 @@
+pyinstaller --onefile --windowed --name "PDF Merger" merge_pdfs_gui.py
