@@ -1,12 +1,13 @@
-# PDF Merger App
+# PDF Merger & Splitter App
 
-A simple tool to merge multiple PDF files into one. Available as both a **command-line interface (CLI)** and a **graphical user interface (GUI)**.
+A simple tool to merge multiple PDF files into one, or split a single PDF into smaller files. Available as both a **command-line interface (CLI)** and a **graphical user interface (GUI)**.
 
 ---
 
 ## Features
 
 - Merge two or more PDF files into a single output file
+- **Split a single PDF into multiple smaller files** by specifying pages per file
 - CLI mode for scripting and automation
 - GUI mode for a point-and-click experience (built with tkinter)
 - Reorder files before merging (GUI)
@@ -35,11 +36,20 @@ pip install -r requirements.txt
 python merge_pdfs_gui.py
 ```
 
+The GUI has two tabs:
+
+**Merge PDFs tab:**
 1. Click **Add Files** to select the PDF files you want to merge.
 2. Use **Move Up** / **Move Down** to set the desired page order.
 3. Click **Merge PDFs** and choose where to save the output file.
 
-### CLI
+**Split PDF tab:**
+1. Click **Browse…** next to *Input PDF File* to select the PDF you want to split.
+2. Set **Pages per output file** (e.g. `3` to create one file per 3 pages).
+3. Click **Browse…** next to *Output Directory* to choose where to save the split files.
+4. Click **Split PDF**. Output files are named `<original>_part_1.pdf`, `<original>_part_2.pdf`, etc.
+
+### CLI — Merge
 
 ```bash
 python merge_pdfs.py file1.pdf file2.pdf file3.pdf
@@ -51,12 +61,33 @@ By default the merged file is saved as `merged.pdf` in the current directory. Us
 python merge_pdfs.py file1.pdf file2.pdf -o combined.pdf
 ```
 
-#### CLI options
+#### CLI merge options
 
 | Option | Description |
 |---|---|
 | `inputs` | One or more PDF files to merge (in the order listed) |
 | `-o`, `--output` | Output filename (default: `merged.pdf`) |
+
+### CLI — Split
+
+```bash
+python split_pdf.py input.pdf -n 5
+```
+
+This splits `input.pdf` into chunks of 5 pages each, saving `input_part_1.pdf`, `input_part_2.pdf`, … in the current directory.
+
+```bash
+python split_pdf.py input.pdf -n 10 -o ./output_dir -p chapter
+```
+
+#### CLI split options
+
+| Option | Description |
+|---|---|
+| `input` | PDF file to split |
+| `-n`, `--pages-per-file` | Number of pages per output file **(required)** |
+| `-o`, `--output-dir` | Output directory (default: current directory) |
+| `-p`, `--prefix` | Output filename prefix (default: input filename without extension) |
 
 ---
 
@@ -82,8 +113,9 @@ This produces a single-file Windows executable (`PDF Merger.exe`) in the `dist/`
 
 ```
 PdfMergerApp/
-├── merge_pdfs.py        # CLI entry point
-├── merge_pdfs_gui.py    # GUI entry point
+├── merge_pdfs.py        # CLI entry point for merging
+├── merge_pdfs_gui.py    # GUI entry point (merge + split tabs)
+├── split_pdf.py         # CLI entry point for splitting
 ├── requirements.txt     # Python dependencies
 └── build.bat            # PyInstaller build script (Windows)
 ```
