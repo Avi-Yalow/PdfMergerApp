@@ -54,16 +54,19 @@ def _split_uniform(stream: io.BytesIO, pages_per_file: int) -> list[tuple[str, i
 
 
 def _split_custom(stream: io.BytesIO, page_counts: list[int]) -> list[tuple[str, io.BytesIO]]:
-    """Split *stream* using *page_counts* as sizes for each output file."""
+    """Split *stream* using *page_counts* as sizes for each output file.
+
+    The last part absorbs any remaining pages beyond the specified count,
+    mirroring the behaviour of the CLI split_pdf_custom() function.
+    """
     reader = PdfReader(stream)
     total = len(reader.pages)
     results: list[tuple[str, io.BytesIO]] = []
     cursor = 0
+    num_parts = len(page_counts)
     for part, count in enumerate(page_counts, start=1):
-        if part == len(page_counts):
-            end = total
-        else:
-            end = min(cursor + count, total)
+        # Last part gets all remaining pages; other parts get exactly count pages.
+        end = total if part == num_parts else min(cursor + count, total)
         writer = PdfWriter()
         for idx in range(cursor, end):
             writer.add_page(reader.pages[idx])
@@ -136,6 +139,7 @@ def split():
     # Sanitize stem: allow alphanumerics, hyphens, underscores and single dots;
     # strip leading/trailing dots and spaces to prevent path traversal.
     stem = re.sub(r'[^\w\- ]', '', stem)
+    # Replace whitespace runs with underscores and strip leading/trailing underscores
     stem = re.sub(r'\s+', '_', stem).strip('_') or "split"
     mode = request.form.get("mode", "uniform")
     stream = io.BytesIO(file.read())
