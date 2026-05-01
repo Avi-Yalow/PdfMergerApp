@@ -45,7 +45,13 @@ Then open <http://localhost:5000> in your browser.  The web UI has two tabs:
 2. Drag items in the list or use the ▲ / ▼ buttons to reorder them.
 3. Click **Merge & Download** — the merged file downloads automatically.
 
-![Merge PDFs tab](https://github.com/user-attachments/assets/d9cf3696-ed04-42df-8e7c-9253ed93409f)
+*Empty state — ready to accept files:*
+
+![Merge PDFs tab — empty](https://github.com/user-attachments/assets/d9cf3696-ed04-42df-8e7c-9253ed93409f)
+
+*Files loaded and ready to merge:*
+
+![Merge PDFs tab — files queued](https://github.com/user-attachments/assets/e4618496-7a9e-4c02-b788-f6330cd44afa)
 
 **Split PDF tab:**
 1. Drag & drop (or click to browse) the PDF you want to split.
@@ -54,7 +60,13 @@ Then open <http://localhost:5000> in your browser.  The web UI has two tabs:
    - **Custom** — enter a comma-separated list of page counts, e.g. `2,1,2`.
 3. Click **Split & Download** — a single PDF or a ZIP archive downloads automatically.
 
-![Split PDF tab](https://github.com/user-attachments/assets/2c5553df-9d96-47fc-af1a-7b115de80603)
+*Empty state — ready to accept a file:*
+
+![Split PDF tab — empty](https://github.com/user-attachments/assets/2c5553df-9d96-47fc-af1a-7b115de80603)
+
+*File loaded with Uniform split mode selected:*
+
+![Split PDF tab — uniform mode](https://github.com/user-attachments/assets/5f9b2cf2-5c2c-4630-9e5b-6cfcc4c8bc09)
 
 ---
 
