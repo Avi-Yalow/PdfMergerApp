@@ -8,6 +8,12 @@ build/
 
 # PyInstaller
 *.spec
+# Keep the Buildozer spec in version control
+!buildozer.spec
+
+# Buildozer (Android build)
+.buildozer/
+bin/
 
 # Virtual environment
 venv/
