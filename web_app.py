@@ -5,7 +5,7 @@ import re
 import zipfile
 from pathlib import Path
 
-from flask import Flask, render_template, request, send_file, jsonify
+from flask import Flask, make_response, render_template, request, send_file, jsonify
 
 try:
     from pypdf import PdfReader, PdfWriter
@@ -135,8 +135,7 @@ def split():
     stem = Path(file.filename).stem
     # Sanitize stem: allow alphanumerics, hyphens, underscores and single dots;
     # strip leading/trailing dots and spaces to prevent path traversal.
-    stem = re.sub(r'[^\w\-. ]', '', stem)
-    stem = re.sub(r'\.{2,}', '.', stem).strip('. ') or "split"
+    stem = re.sub(r'[^\w\- ]', '', stem).strip() or "split"
     mode = request.form.get("mode", "uniform")
     stream = io.BytesIO(file.read())
 
@@ -165,12 +164,10 @@ def split():
     named_parts = [(f"{stem}_part_{i}.pdf", buf) for i, (_, buf) in enumerate(parts, start=1)]
 
     if len(named_parts) == 1:
-        return send_file(
-            named_parts[0][1],
-            mimetype="application/pdf",
-            as_attachment=True,
-            download_name=f"{stem}_part_1.pdf",
-        )
+        resp = make_response(named_parts[0][1].getvalue())
+        resp.headers["Content-Type"] = "application/pdf"
+        resp.headers["Content-Disposition"] = f'attachment; filename="{stem}_part_1.pdf"'
+        return resp
 
     zip_buf = _build_zip(named_parts)
     return send_file(
@@ -185,4 +182,4 @@ if __name__ == "__main__":
     # NOTE: The built-in Flask development server is for local use only.
     # For production deployments use a WSGI server such as Gunicorn:
     #   gunicorn web_app:app
-    app.run(debug=False, port=5000)
+    app.run(debug=False, host="127.0.0.1", port=5000)
