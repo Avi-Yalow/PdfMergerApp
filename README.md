@@ -8,9 +8,10 @@ A simple tool to merge multiple PDF files into one, or split a single PDF into s
 
 - Merge two or more PDF files into a single output file
 - **Split a single PDF into multiple smaller files** — uniform chunks or fully custom page counts per file
+- **Web UI** — browser-based interface, no desktop required
 - CLI mode for scripting and automation
 - GUI mode for a point-and-click experience (built with tkinter)
-- Reorder files before merging (GUI)
+- Reorder files before merging (GUI / Web UI)
 - Build a standalone Windows executable with a single command
 
 ---
@@ -19,8 +20,9 @@ A simple tool to merge multiple PDF files into one, or split a single PDF into s
 
 - Python 3.10 or higher
 - [pypdf](https://pypdf.readthedocs.io/)
+- [Flask](https://flask.palletsprojects.com/) *(required for the web UI only)*
 
-Install the dependency with:
+Install the dependencies with:
 
 ```bash
 pip install -r requirements.txt
@@ -29,6 +31,28 @@ pip install -r requirements.txt
 ---
 
 ## Usage
+
+### Web UI
+
+```bash
+python web_app.py
+```
+
+Then open <http://localhost:5000> in your browser.  The web UI has two tabs:
+
+**Merge PDFs tab:**
+1. Drag & drop (or click to browse) the PDF files you want to merge.
+2. Drag items in the list or use the ▲ / ▼ buttons to reorder them.
+3. Click **Merge & Download** — the merged file downloads automatically.
+
+**Split PDF tab:**
+1. Drag & drop (or click to browse) the PDF you want to split.
+2. Choose a split mode:
+   - **Uniform** — enter a single number (*pages per output file*).
+   - **Custom** — enter a comma-separated list of page counts, e.g. `2,1,2`.
+3. Click **Split & Download** — a single PDF or a ZIP archive downloads automatically.
+
+---
 
 ### GUI (recommended for most users)
 
@@ -133,6 +157,9 @@ PdfMergerApp/
 ├── merge_pdfs.py        # CLI entry point for merging
 ├── merge_pdfs_gui.py    # GUI entry point (merge + split tabs)
 ├── split_pdf.py         # CLI entry point for splitting
+├── web_app.py           # Web UI entry point (Flask)
+├── templates/
+│   └── index.html       # Web UI HTML template
 ├── requirements.txt     # Python dependencies
 └── build.bat            # PyInstaller build script (Windows)
 ```
