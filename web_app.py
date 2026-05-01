@@ -135,7 +135,8 @@ def split():
     stem = Path(file.filename).stem
     # Sanitize stem: allow alphanumerics, hyphens, underscores and single dots;
     # strip leading/trailing dots and spaces to prevent path traversal.
-    stem = re.sub(r'[^\w\- ]', '', stem).strip() or "split"
+    stem = re.sub(r'[^\w\- ]', '', stem)
+    stem = re.sub(r'\s+', '_', stem).strip('_') or "split"
     mode = request.form.get("mode", "uniform")
     stream = io.BytesIO(file.read())
 

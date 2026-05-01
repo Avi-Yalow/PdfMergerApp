@@ -537,23 +537,30 @@ function onModeChange() {
 async function submitSplit(e) {
   e.preventDefault();
   if (!splitFile) return;
+
+  // Validate inputs before touching UI state
+  const mode = document.getElementById("mode-custom").checked ? "custom" : "uniform";
+  let ppf, rawCounts;
+  if (mode === "uniform") {
+    ppf = parseInt(document.getElementById("pages-per-file").value, 10);
+    if (!ppf || ppf < 1) { showToast("Pages per file must be a positive integer."); return; }
+  } else {
+    rawCounts = document.getElementById("page-counts").value.trim();
+    if (!rawCounts) { showToast("Please enter page counts."); return; }
+  }
+
   const btn  = document.getElementById("split-btn");
   const prog = document.getElementById("split-progress");
   btn.disabled = true;
   prog.style.display = "";
   try {
-    const mode = document.getElementById("mode-custom").checked ? "custom" : "uniform";
     const fd = new FormData();
     fd.append("pdf", splitFile);
     fd.append("mode", mode);
     if (mode === "uniform") {
-      const ppf = parseInt(document.getElementById("pages-per-file").value, 10);
-      if (!ppf || ppf < 1) { showToast("Pages per file must be a positive integer."); return; }
       fd.append("pages_per_file", ppf);
     } else {
-      const raw = document.getElementById("page-counts").value.trim();
-      if (!raw) { showToast("Please enter page counts."); return; }
-      fd.append("page_counts", raw);
+      fd.append("page_counts", rawCounts);
     }
     const res = await fetch("/split", { method: "POST", body: fd });
     if (!res.ok) {
