@@ -12,6 +12,7 @@ A simple tool to merge multiple PDF files into one, or split a single PDF into s
 - GUI mode for a point-and-click experience (built with tkinter)
 - Reorder files before merging (GUI)
 - Build a standalone Windows executable with a single command
+- Build an Android APK with a single command (via [Buildozer](https://buildozer.readthedocs.io/))
 
 ---
 
@@ -126,15 +127,65 @@ This produces a single-file Windows executable (`PDF Merger.exe`) in the `dist/`
 
 ---
 
+## Building an Android APK
+
+The Android build uses [Kivy](https://kivy.org/) for the UI and [Buildozer](https://buildozer.readthedocs.io/) as the packaging tool.  The entry point is `main.py` (a Kivy re-implementation of the same Merge + Split UI).
+
+### Prerequisites
+
+1. **Linux or macOS build machine** (Ubuntu 22.04 LTS is recommended; Windows users can use WSL 2).
+
+2. Install system dependencies:
+
+   ```bash
+   sudo apt-get update && sudo apt-get install -y \
+       git zip unzip openjdk-17-jdk python3-pip \
+       autoconf libtool pkg-config zlib1g-dev \
+       libncurses5-dev libncursesw5-dev libtinfo5 \
+       cmake libffi-dev libssl-dev
+   ```
+
+3. Install Buildozer and Kivy:
+
+   ```bash
+   pip install buildozer kivy
+   ```
+
+### Build
+
+```bash
+bash build_android.sh          # debug APK (default)
+bash build_android.sh release  # release APK (requires keystore setup)
+```
+
+The first run downloads the Android SDK/NDK and compiles the Python runtime — this can take 20–30 minutes.  Subsequent builds are much faster.
+
+The resulting APK is placed in the `bin/` directory.
+
+### Android app features
+
+The Kivy UI (`main.py`) provides the same two-tab interface as the desktop GUI:
+
+**Merge PDFs tab** — tap *Add Files* to pick one or more PDFs, then tap *Merge PDFs* to combine them.
+
+**Split PDF tab** — select an input PDF and enter either a single page count (uniform split, e.g. `3`) or a comma-separated list of counts (custom split, e.g. `2,1,2`), then tap *Split PDF*.
+
+Output files are written to the directory you select (defaults to device storage root).
+
+---
+
 ## Project Structure
 
 ```
 PdfMergerApp/
+├── main.py              # Kivy entry point for Android (merge + split tabs)
 ├── merge_pdfs.py        # CLI entry point for merging
-├── merge_pdfs_gui.py    # GUI entry point (merge + split tabs)
+├── merge_pdfs_gui.py    # GUI entry point (merge + split tabs, tkinter/desktop)
 ├── split_pdf.py         # CLI entry point for splitting
-├── requirements.txt     # Python dependencies
-└── build.bat            # PyInstaller build script (Windows)
+├── requirements.txt     # Python dependencies (desktop)
+├── buildozer.spec       # Buildozer configuration for Android APK
+├── build.bat            # PyInstaller build script (Windows)
+└── build_android.sh     # Buildozer build script (Android)
 ```
 
 ---
