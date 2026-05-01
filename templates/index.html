@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF Merger &amp; Splitter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 15px;
+      background: #f0f2f5;
+      color: #212529;
+    }
+
+    /* ── Card shell ── */
+    .app-card {
+      max-width: 760px;
+      margin: 2rem auto;
+      background: #fff;
+      border-radius: 1rem;
+      box-shadow: 0 4px 24px rgba(0,0,0,.10);
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: #dc3545;
+      color: #fff;
+      padding: 1.25rem 1.5rem;
+    }
+    .card-header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: .4px; }
+    .card-header p  { margin: .3rem 0 0; font-size: .9rem; opacity: .88; }
+
+    .card-body { padding: 1.5rem; }
+
+    /* ── Tabs ── */
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid #dee2e6;
+      margin-bottom: 1.5rem;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      padding: .6rem 1.2rem;
+      font-size: .95rem;
+      font-weight: 500;
+      color: #6c757d;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn:hover { color: #dc3545; }
+    .tab-btn.active { color: #dc3545; border-bottom-color: #dc3545; font-weight: 700; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Drop zone ── */
+    .drop-zone {
+      border: 2px dashed #adb5bd;
+      border-radius: .75rem;
+      padding: 2rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      background: #fafafa;
+      margin-bottom: 1rem;
+      user-select: none;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: #dc3545;
+      background: #fff5f5;
+    }
+    .drop-zone .drop-icon { font-size: 2.4rem; line-height: 1; }
+    .drop-zone .drop-label { margin: .5rem 0 0; font-weight: 600; }
+    .drop-zone .drop-hint  { font-size: .85rem; color: #6c757d; margin-top: .25rem; }
+
+    /* ── File list ── */
+    .file-list { margin-bottom: 1rem; }
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: .5rem;
+      padding: .4rem .75rem;
+      margin-bottom: .4rem;
+      font-size: .875rem;
+    }
+    .file-item .badge {
+      display: inline-block;
+      min-width: 1.5rem;
+      padding: .15rem .4rem;
+      background: #6c757d;
+      color: #fff;
+      border-radius: .35rem;
+      font-size: .75rem;
+      text-align: center;
+    }
+    .file-item .file-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .file-item .file-size { color: #6c757d; font-size: .8rem; white-space: nowrap; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      padding: .45rem 1rem;
+      border: 1px solid transparent;
+      border-radius: .5rem;
+      font-size: .9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s, border-color .15s, opacity .15s;
+      text-decoration: none;
+    }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .btn-primary   { background: #dc3545; color: #fff; border-color: #dc3545; }
+    .btn-primary:not(:disabled):hover { background: #bb2d3b; border-color: #b02a37; }
+
+    .btn-ghost {
+      background: transparent;
+      color: #6c757d;
+      border-color: #ced4da;
+      font-size: .82rem;
+      padding: .3rem .75rem;
+    }
+    .btn-ghost:hover { background: #f1f3f5; }
+
+    .btn-icon {
+      background: transparent;
+      border: 1px solid #ced4da;
+      color: #495057;
+      padding: .1rem .4rem;
+      font-size: .75rem;
+      border-radius: .35rem;
+      cursor: pointer;
+      line-height: 1.6;
+      transition: background .15s;
+    }
+    .btn-icon:hover:not(:disabled) { background: #f1f3f5; }
+    .btn-icon:disabled { opacity: .4; cursor: default; }
+    .btn-icon.danger { border-color: #f5c6cb; color: #dc3545; }
+    .btn-icon.danger:hover { background: #fff5f5; }
+
+    .btn-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+
+    /* ── Form elements ── */
+    .form-group { margin-bottom: 1rem; }
+    .form-label { display: block; font-weight: 600; margin-bottom: .4rem; }
+    .form-label-sm { display: block; margin-bottom: .3rem; }
+    .form-note { font-size: .82rem; color: #6c757d; }
+
+    .form-control {
+      display: block;
+      width: 100%;
+      padding: .4rem .65rem;
+      border: 1px solid #ced4da;
+      border-radius: .45rem;
+      font-size: .9rem;
+      line-height: 1.5;
+      color: #212529;
+      background: #fff;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: #dc3545;
+      box-shadow: 0 0 0 3px rgba(220,53,69,.15);
+    }
+    .form-control.w-sm { max-width: 130px; }
+    .form-control.w-md { max-width: 300px; }
+
+    .radio-group { display: flex; flex-direction: column; gap: .4rem; }
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      cursor: pointer;
+      font-size: .9rem;
+    }
+    .radio-label input[type="radio"] { accent-color: #dc3545; width: 1rem; height: 1rem; }
+
+    /* ── Progress bar ── */
+    .progress-wrap { margin-top: .75rem; }
+    .progress {
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #dc3545, #ff6b81);
+      background-size: 200% 100%;
+      animation: progress-anim 1.2s linear infinite;
+    }
+    @keyframes progress-anim {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .progress-label { font-size: .8rem; color: #6c757d; margin-top: .3rem; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      min-width: 260px;
+      max-width: 400px;
+      background: #343a40;
+      color: #fff;
+      border-radius: .65rem;
+      padding: .8rem 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: .6rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,.2);
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(1rem);
+      transition: opacity .25s, transform .25s;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    #toast.error { background: #dc3545; }
+    #toast .toast-msg { flex: 1; font-size: .9rem; }
+    #toast .toast-close {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,.75);
+      font-size: 1.1rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    #toast .toast-close:hover { color: #fff; }
+  </style>
+</head>
+<body>
+
+<div class="app-card">
+  <div class="card-header">
+    <h1><span aria-hidden="true">📄</span> PDF Merger &amp; Splitter</h1>
+    <p>Merge multiple PDFs into one, or split a PDF into smaller files — right in your browser.</p>
+  </div>
+  <div class="card-body">
+
+    <!-- Tab bar -->
+    <div class="tab-bar" role="tablist">
+      <button class="tab-btn active" id="tab-merge" role="tab"
+              aria-controls="panel-merge" aria-selected="true"
+              onclick="switchTab('merge')">Merge PDFs</button>
+      <button class="tab-btn" id="tab-split" role="tab"
+              aria-controls="panel-split" aria-selected="false"
+              onclick="switchTab('split')">Split PDF</button>
+    </div>
+
+    <!-- ===== MERGE PANEL ===== -->
+    <div class="tab-panel active" id="panel-merge" role="tabpanel">
+      <form id="merge-form" onsubmit="submitMerge(event)">
+
+        <div class="drop-zone" id="merge-drop"
+             onclick="document.getElementById('merge-input').click()"
+             ondragover="onDragOver(event,this)" ondragleave="onDragLeave(this)"
+             ondrop="onMergeDrop(event)">
+          <div class="drop-icon" aria-hidden="true">📂</div>
+          <div class="drop-label">Drag &amp; drop PDF files here</div>
+          <div class="drop-hint">or click to browse</div>
+          <input type="file" id="merge-input" accept=".pdf" multiple hidden
+                 onchange="onMergeInputChange()" />
+        </div>
+
+        <div class="file-list" id="merge-file-list"></div>
+
+        <div class="btn-row">
+          <button type="submit" class="btn btn-primary" id="merge-btn" disabled>
+            ⬇ Merge &amp; Download
+          </button>
+          <button type="button" class="btn btn-ghost" id="merge-clear"
+                  style="display:none" onclick="clearMerge()">Clear all</button>
+        </div>
+
+        <div class="progress-wrap" id="merge-progress" style="display:none">
+          <div class="progress"><div class="progress-bar"></div></div>
+          <div class="progress-label">Merging files…</div>
+        </div>
+      </form>
+    </div>
+
+    <!-- ===== SPLIT PANEL ===== -->
+    <div class="tab-panel" id="panel-split" role="tabpanel">
+      <form id="split-form" onsubmit="submitSplit(event)">
+
+        <div class="drop-zone" id="split-drop"
+             onclick="document.getElementById('split-input').click()"
+             ondragover="onDragOver(event,this)" ondragleave="onDragLeave(this)"
+             ondrop="onSplitDrop(event)">
+          <div class="drop-icon" aria-hidden="true">📂</div>
+          <div class="drop-label">Drag &amp; drop a PDF file here</div>
+          <div class="drop-hint">or click to browse</div>
+          <input type="file" id="split-input" accept=".pdf" hidden
+                 onchange="onSplitInputChange()" />
+        </div>
+
+        <div class="file-list" id="split-preview"></div>
+
+        <div id="split-options" style="display:none">
+          <div class="form-group">
+            <div class="form-label">Split mode</div>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="split-mode" value="uniform"
+                       id="mode-uniform" checked onchange="onModeChange()" />
+                Uniform — same number of pages per output file
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="split-mode" value="custom"
+                       id="mode-custom" onchange="onModeChange()" />
+                Custom — specify page counts per output file
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group" id="uniform-opts">
+            <label class="form-label-sm" for="pages-per-file">Pages per output file</label>
+            <input type="number" class="form-control w-sm" id="pages-per-file" min="1" value="1" />
+          </div>
+
+          <div class="form-group" id="custom-opts" style="display:none">
+            <label class="form-label-sm" for="page-counts">
+              Page counts
+              <span class="form-note">(comma-separated, e.g. 2,1,2)</span>
+            </label>
+            <input type="text" class="form-control w-md" id="page-counts" placeholder="e.g. 2,1,2" />
+          </div>
+        </div>
+
+        <div class="btn-row" style="margin-top:.75rem">
+          <button type="submit" class="btn btn-primary" id="split-btn" disabled>
+            ⬇ Split &amp; Download
+          </button>
+          <button type="button" class="btn btn-ghost" id="split-clear"
+                  style="display:none" onclick="clearSplit()">Clear</button>
+        </div>
+
+        <div class="progress-wrap" id="split-progress" style="display:none">
+          <div class="progress"><div class="progress-bar"></div></div>
+          <div class="progress-label">Splitting file…</div>
+        </div>
+      </form>
+    </div>
+
+  </div><!-- card-body -->
+</div><!-- app-card -->
+
+<!-- Toast notification -->
+<div id="toast" role="alert">
+  <span class="toast-msg" id="toast-msg"></span>
+  <button class="toast-close" onclick="hideToast()" aria-label="Close">✕</button>
+</div>
+
+<script>
+// ─── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(name) {
+  ["merge", "split"].forEach(t => {
+    document.getElementById("tab-" + t).classList.toggle("active", t === name);
+    document.getElementById("panel-" + t).classList.toggle("active", t === name);
+  });
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+let _toastTimer;
+function showToast(msg, type = "error") {
+  const el = document.getElementById("toast");
+  document.getElementById("toast-msg").textContent = msg;
+  el.className = "show " + type;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(hideToast, 5000);
+}
+function hideToast() {
+  document.getElementById("toast").className = "";
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function formatBytes(b) {
+  if (b < 1024) return b + " B";
+  if (b < 1048576) return (b / 1024).toFixed(1) + " KB";
+  return (b / 1048576).toFixed(1) + " MB";
+}
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement("a"), { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+}
+
+// ─── Drag & drop helpers ───────────────────────────────────────────────────────
+function onDragOver(e, el)  { e.preventDefault(); el.classList.add("drag-over"); }
+function onDragLeave(el)    { el.classList.remove("drag-over"); }
+
+// ─── MERGE ────────────────────────────────────────────────────────────────────
+const mergeFiles = [];
+
+function onMergeDrop(e) {
+  e.preventDefault();
+  document.getElementById("merge-drop").classList.remove("drag-over");
+  addMergeFiles([...e.dataTransfer.files]);
+}
+function onMergeInputChange() {
+  const inp = document.getElementById("merge-input");
+  addMergeFiles([...inp.files]);
+  inp.value = "";
+}
+function addMergeFiles(files) {
+  files.filter(f => f.name.toLowerCase().endsWith(".pdf")).forEach(f => mergeFiles.push(f));
+  renderMergeList();
+}
+function clearMerge() { mergeFiles.length = 0; renderMergeList(); }
+
+function renderMergeList() {
+  const list = document.getElementById("merge-file-list");
+  list.innerHTML = "";
+  mergeFiles.forEach((f, i) => {
+    const item = document.createElement("div");
+    item.className = "file-item";
+    item.innerHTML =
+      `<span class="badge">${i + 1}</span>` +
+      `<span class="file-name" title="${escHtml(f.name)}">${escHtml(f.name)}</span>` +
+      `<span class="file-size">${formatBytes(f.size)}</span>` +
+      `<button type="button" class="btn-icon" title="Move up"` +
+        ` onclick="moveMerge(${i},-1)"${i === 0 ? " disabled" : ""}>▲</button>` +
+      `<button type="button" class="btn-icon" title="Move down"` +
+        ` onclick="moveMerge(${i},1)"${i === mergeFiles.length - 1 ? " disabled" : ""}>▼</button>` +
+      `<button type="button" class="btn-icon danger" title="Remove"` +
+        ` onclick="removeMerge(${i})">✕</button>`;
+    list.appendChild(item);
+  });
+  document.getElementById("merge-btn").disabled = mergeFiles.length < 2;
+  document.getElementById("merge-clear").style.display = mergeFiles.length ? "" : "none";
+}
+function moveMerge(i, dir) {
+  const j = i + dir;
+  if (j >= 0 && j < mergeFiles.length) {
+    [mergeFiles[i], mergeFiles[j]] = [mergeFiles[j], mergeFiles[i]];
+    renderMergeList();
+  }
+}
+function removeMerge(i) { mergeFiles.splice(i, 1); renderMergeList(); }
+
+async function submitMerge(e) {
+  e.preventDefault();
+  if (mergeFiles.length < 2) return;
+  const btn = document.getElementById("merge-btn");
+  const prog = document.getElementById("merge-progress");
+  btn.disabled = true;
+  prog.style.display = "";
+  try {
+    const fd = new FormData();
+    mergeFiles.forEach(f => fd.append("pdfs", f));
+    const res = await fetch("/merge", { method: "POST", body: fd });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      showToast(d.error || "Merge failed.");
+      return;
+    }
+    triggerDownload(await res.blob(), "merged.pdf");
+  } catch (err) {
+    showToast("Network error: " + err.message);
+  } finally {
+    btn.disabled = mergeFiles.length < 2;
+    prog.style.display = "none";
+  }
+}
+
+// ─── SPLIT ────────────────────────────────────────────────────────────────────
+let splitFile = null;
+
+function onSplitDrop(e) {
+  e.preventDefault();
+  document.getElementById("split-drop").classList.remove("drag-over");
+  const f = [...e.dataTransfer.files].find(f => f.name.toLowerCase().endsWith(".pdf"));
+  if (f) setSplitFile(f);
+}
+function onSplitInputChange() {
+  const inp = document.getElementById("split-input");
+  setSplitFile(inp.files[0]);
+  inp.value = "";
+}
+function setSplitFile(file) {
+  if (!file || !file.name.toLowerCase().endsWith(".pdf")) {
+    showToast("Please select a PDF file.");
+    return;
+  }
+  splitFile = file;
+  renderSplitPreview();
+}
+function clearSplit() { splitFile = null; renderSplitPreview(); }
+
+function renderSplitPreview() {
+  const preview = document.getElementById("split-preview");
+  preview.innerHTML = "";
+  if (splitFile) {
+    const item = document.createElement("div");
+    item.className = "file-item";
+    item.innerHTML =
+      `<span aria-hidden="true">📄</span>` +
+      `<span class="file-name" title="${escHtml(splitFile.name)}">${escHtml(splitFile.name)}</span>` +
+      `<span class="file-size">${formatBytes(splitFile.size)}</span>`;
+    preview.appendChild(item);
+  }
+  document.getElementById("split-options").style.display = splitFile ? "" : "none";
+  document.getElementById("split-btn").disabled = !splitFile;
+  document.getElementById("split-clear").style.display = splitFile ? "" : "none";
+}
+
+function onModeChange() {
+  const isCustom = document.getElementById("mode-custom").checked;
+  document.getElementById("uniform-opts").style.display = isCustom ? "none" : "";
+  document.getElementById("custom-opts").style.display  = isCustom ? "" : "none";
+}
+
+async function submitSplit(e) {
+  e.preventDefault();
+  if (!splitFile) return;
+
+  // Validate inputs before touching UI state
+  const mode = document.getElementById("mode-custom").checked ? "custom" : "uniform";
+  let ppf, rawCounts;
+  if (mode === "uniform") {
+    ppf = parseInt(document.getElementById("pages-per-file").value, 10);
+    if (!ppf || ppf < 1) { showToast("Pages per file must be a positive integer."); return; }
+  } else {
+    rawCounts = document.getElementById("page-counts").value.trim();
+    if (!rawCounts) { showToast("Please enter page counts."); return; }
+  }
+
+  const btn  = document.getElementById("split-btn");
+  const prog = document.getElementById("split-progress");
+  btn.disabled = true;
+  prog.style.display = "";
+  try {
+    const fd = new FormData();
+    fd.append("pdf", splitFile);
+    fd.append("mode", mode);
+    if (mode === "uniform") {
+      fd.append("pages_per_file", ppf);
+    } else {
+      fd.append("page_counts", rawCounts);
+    }
+    const res = await fetch("/split", { method: "POST", body: fd });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      showToast(d.error || "Split failed.");
+      return;
+    }
+    const blob = await res.blob();
+    const stem = splitFile.name.replace(/\.pdf$/i, "");
+    const isZip = (res.headers.get("Content-Type") || "").includes("zip");
+    triggerDownload(blob, isZip ? `${stem}_split.zip` : `${stem}_part_1.pdf`);
+  } catch (err) {
+    showToast("Network error: " + err.message);
+  } finally {
+    btn.disabled = false;
+    prog.style.display = "none";
+  }
+}
+
+// ─── XSS helper ───────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+          .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+</script>
+</body>
+</html>
