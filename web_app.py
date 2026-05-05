@@ -8,7 +8,7 @@ from pathlib import Path
 from flask import Flask, make_response, render_template, request, send_file, jsonify
 
 try:
-    from pypdf import PdfReader, PdfWriter
+    from pdf_operations import merge_pdf_streams, split_pdf_stream_uniform, split_pdf_stream_custom
 except ImportError:
     raise SystemExit("Required package 'pypdf' not found. Install it with: pip install pypdf")
 
@@ -20,65 +20,6 @@ app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _merge_pdfs(file_streams: list[io.BytesIO]) -> io.BytesIO:
-    """Merge multiple PDF byte-streams into one and return the result."""
-    writer = PdfWriter()
-    for stream in file_streams:
-        reader = PdfReader(stream)
-        for page in reader.pages:
-            writer.add_page(page)
-    output = io.BytesIO()
-    writer.write(output)
-    output.seek(0)
-    return output
-
-
-def _split_uniform(stream: io.BytesIO, pages_per_file: int) -> list[tuple[str, io.BytesIO]]:
-    """Split *stream* into equal chunks of *pages_per_file* pages each."""
-    reader = PdfReader(stream)
-    total = len(reader.pages)
-    results: list[tuple[str, io.BytesIO]] = []
-    part = 1
-    for start in range(0, total, pages_per_file):
-        end = min(start + pages_per_file, total)
-        writer = PdfWriter()
-        for idx in range(start, end):
-            writer.add_page(reader.pages[idx])
-        buf = io.BytesIO()
-        writer.write(buf)
-        buf.seek(0)
-        results.append((f"split_part_{part}.pdf", buf))
-        part += 1
-    return results
-
-
-def _split_custom(stream: io.BytesIO, page_counts: list[int]) -> list[tuple[str, io.BytesIO]]:
-    """Split *stream* using *page_counts* as sizes for each output file.
-
-    The last part absorbs any remaining pages beyond the specified count,
-    mirroring the behaviour of the CLI split_pdf_custom() function.
-    """
-    reader = PdfReader(stream)
-    total = len(reader.pages)
-    results: list[tuple[str, io.BytesIO]] = []
-    cursor = 0
-    num_parts = len(page_counts)
-    for part, count in enumerate(page_counts, start=1):
-        # Last part gets all remaining pages; other parts get exactly count pages.
-        end = total if part == num_parts else min(cursor + count, total)
-        writer = PdfWriter()
-        for idx in range(cursor, end):
-            writer.add_page(reader.pages[idx])
-        buf = io.BytesIO()
-        writer.write(buf)
-        buf.seek(0)
-        results.append((f"split_part_{part}.pdf", buf))
-        cursor = end
-        if cursor >= total:
-            break
-    return results
-
 
 def _build_zip(parts: list[tuple[str, io.BytesIO]]) -> io.BytesIO:
     """Pack multiple (name, stream) pairs into a zip archive."""
@@ -114,7 +55,7 @@ def merge():
         streams.append(io.BytesIO(f.read()))
 
     try:
-        merged = _merge_pdfs(streams)
+        merged = merge_pdf_streams(streams)
     except Exception:
         app.logger.exception("Merge failed")
         return jsonify(error="Merge failed. Please ensure all uploaded files are valid PDFs."), 500
@@ -149,7 +90,7 @@ def split():
             pages_per_file = int(request.form.get("pages_per_file", 1))
             if pages_per_file < 1:
                 return jsonify(error="Pages per file must be at least 1."), 400
-            parts = _split_uniform(stream, pages_per_file)
+            parts = split_pdf_stream_uniform(stream, pages_per_file)
         elif mode == "custom":
             raw = request.form.get("page_counts", "")
             try:
@@ -158,7 +99,7 @@ def split():
                 return jsonify(error="Page counts must be comma-separated integers, e.g. '2,1,2'."), 400
             if not page_counts or any(c < 1 for c in page_counts):
                 return jsonify(error="Each page count must be a positive integer."), 400
-            parts = _split_custom(stream, page_counts)
+            parts = split_pdf_stream_custom(stream, page_counts)
         else:
             return jsonify(error="Unknown split mode."), 400
     except Exception:

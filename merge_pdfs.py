@@ -1,32 +1,31 @@
 """PDF Merge Tool - Merge multiple PDF files into one."""
 
 import argparse
+import io
 import sys
 from pathlib import Path
 
 try:
-    from pypdf import PdfMerger
+    from pdf_operations import merge_pdf_streams
 except ImportError:
     print("Required package 'pypdf' not found. Install it with: pip install pypdf")
     sys.exit(1)
 
 
 def merge_pdfs(input_files: list[str], output_file: str) -> None:
-    merger = PdfMerger()
-    try:
-        for pdf_path in input_files:
-            path = Path(pdf_path)
-            if not path.exists():
-                print(f"Error: File not found: {pdf_path}")
-                sys.exit(1)
-            if not path.suffix.lower() == ".pdf":
-                print(f"Warning: {pdf_path} may not be a PDF file")
-            merger.append(str(path))
+    streams: list[io.BytesIO] = []
+    for pdf_path in input_files:
+        path = Path(pdf_path)
+        if not path.exists():
+            print(f"Error: File not found: {pdf_path}")
+            sys.exit(1)
+        if not path.suffix.lower() == ".pdf":
+            print(f"Warning: {pdf_path} may not be a PDF file")
+        streams.append(io.BytesIO(path.read_bytes()))
 
-        merger.write(output_file)
-        print(f"Merged {len(input_files)} files into: {output_file}")
-    finally:
-        merger.close()
+    merged = merge_pdf_streams(streams)
+    Path(output_file).write_bytes(merged.read())
+    print(f"Merged {len(input_files)} files into: {output_file}")
 
 
 def main():
