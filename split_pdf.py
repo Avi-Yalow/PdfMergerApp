@@ -1,27 +1,16 @@
 """PDF Split Tool - Split a PDF file into multiple smaller PDF files."""
 
 import argparse
+import io
 import sys
 from pathlib import Path
 
 try:
-    from pypdf import PdfReader, PdfWriter
+    from pypdf import PdfReader
+    from pdf_operations import split_pdf_stream_uniform, split_pdf_stream_custom
 except ImportError:
     print("Required package 'pypdf' not found. Install it with: pip install pypdf")
     sys.exit(1)
-
-
-def _write_chunk(
-    reader: "PdfReader",
-    page_indices: list[int],
-    output_file: Path,
-) -> None:
-    """Write a subset of pages from *reader* to *output_file*."""
-    writer = PdfWriter()
-    for idx in page_indices:
-        writer.add_page(reader.pages[idx])
-    with open(output_file, "wb") as f:
-        writer.write(f)
 
 
 def split_pdf(
@@ -61,20 +50,16 @@ def split_pdf(
     if output_prefix is None:
         output_prefix = path.stem
 
-    reader = PdfReader(str(path))
-    total_pages = len(reader.pages)
+    stream = io.BytesIO(path.read_bytes())
+    total_pages = len(PdfReader(stream).pages)
+    stream.seek(0)
 
     if total_pages == 0:
         print("Error: The input PDF has no pages.")
         sys.exit(1)
 
-    # Build uniform chunk sizes
-    chunks: list[list[int]] = []
-    for start in range(0, total_pages, pages_per_file):
-        end = min(start + pages_per_file, total_pages)
-        chunks.append(list(range(start, end)))
-
-    return _write_chunks(reader, chunks, output_dir_path, output_prefix, path.name)
+    parts = split_pdf_stream_uniform(stream, pages_per_file)
+    return _write_parts(parts, output_dir_path, output_prefix, path.name)
 
 
 def split_pdf_custom(
@@ -125,8 +110,9 @@ def split_pdf_custom(
     if output_prefix is None:
         output_prefix = path.stem
 
-    reader = PdfReader(str(path))
-    total_pages = len(reader.pages)
+    stream = io.BytesIO(path.read_bytes())
+    total_pages = len(PdfReader(stream).pages)
+    stream.seek(0)
 
     if total_pages == 0:
         print("Error: The input PDF has no pages.")
@@ -138,36 +124,24 @@ def split_pdf_custom(
         )
         sys.exit(1)
 
-    # Build custom chunks; remaining pages (if any) go into the last chunk
-    chunks: list[list[int]] = []
-    cursor = 0
-    for i, count in enumerate(page_counts):
-        if i == len(page_counts) - 1:
-            # Last requested chunk gets all remaining pages
-            end = total_pages
-        else:
-            end = min(cursor + count, total_pages)
-        chunks.append(list(range(cursor, end)))
-        cursor = end
-
-    return _write_chunks(reader, chunks, output_dir_path, output_prefix, path.name)
+    parts = split_pdf_stream_custom(stream, page_counts)
+    return _write_parts(parts, output_dir_path, output_prefix, path.name)
 
 
-def _write_chunks(
-    reader: "PdfReader",
-    chunks: list[list[int]],
+def _write_parts(
+    parts: list[tuple[str, io.BytesIO]],
     output_dir_path: Path,
     output_prefix: str,
     source_name: str,
 ) -> list[str]:
-    """Write *chunks* (each a list of 0-based page indices) to individual PDFs."""
+    """Write *parts* (each a (name, stream) pair) to individual PDF files."""
     output_files: list[str] = []
-    for part, page_indices in enumerate(chunks, start=1):
-        output_file = output_dir_path / f"{output_prefix}_part_{part}.pdf"
-        _write_chunk(reader, page_indices, output_file)
-        start_label = page_indices[0] + 1
-        end_label = page_indices[-1] + 1
-        print(f"Created: {output_file} (pages {start_label}–{end_label})")
+    for part_num, (_, buf) in enumerate(parts, start=1):
+        output_file = output_dir_path / f"{output_prefix}_part_{part_num}.pdf"
+        data = buf.read()
+        output_file.write_bytes(data)
+        num_pages = len(PdfReader(io.BytesIO(data)).pages)
+        print(f"Created: {output_file} ({num_pages} page(s))")
         output_files.append(str(output_file))
 
     print(f"Split '{source_name}' into {len(output_files)} file(s).")

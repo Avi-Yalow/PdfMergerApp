@@ -1,12 +1,13 @@
 """PDF Merger & Splitter Tool - GUI version using tkinter."""
 
+import io
 import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
 
 try:
-    from pypdf import PdfReader, PdfWriter
+    from pdf_operations import merge_pdf_streams
 except ImportError:
     root = tk.Tk()
     root.withdraw()
@@ -139,14 +140,10 @@ class PdfMergerApp:
         if not output_path:
             return
 
-        writer = PdfWriter()
         try:
-            for pdf_path in self.file_paths:
-                reader = PdfReader(pdf_path)
-                for page in reader.pages:
-                    writer.add_page(page)
-            with open(output_path, "wb") as f:
-                writer.write(f)
+            streams = [io.BytesIO(Path(p).read_bytes()) for p in self.file_paths]
+            merged = merge_pdf_streams(streams)
+            Path(output_path).write_bytes(merged.read())
             messagebox.showinfo("PDF Merger", f"Successfully merged {len(self.file_paths)} files!\n\nSaved to:\n{output_path}")
         except Exception as e:
             messagebox.showerror("PDF Merger", f"Error merging files:\n{e}")
