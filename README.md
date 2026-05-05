@@ -21,6 +21,7 @@ A simple tool to merge multiple PDF files into one, or split a single PDF into s
 - Python 3.10 or higher
 - [pypdf](https://pypdf.readthedocs.io/)
 - [Flask](https://flask.palletsprojects.com/) *(required for the web UI only)*
+- [Gunicorn](https://gunicorn.org/) *(required for the web UI only)*
 
 Install the dependencies with:
 
@@ -36,6 +37,17 @@ pip install -r requirements.txt
 
 ```bash
 python web_app.py
+```
+
+Then open <http://localhost:5000> in your browser.
+
+### Docker
+
+Build and run the web UI in a container:
+
+```bash
+docker build -t pdf-merger-app .
+docker run -p 5000:5000 pdf-merger-app
 ```
 
 Then open <http://localhost:5000> in your browser.  The web UI has two tabs:
@@ -177,6 +189,7 @@ PdfMergerApp/
 ├── templates/
 │   └── index.html       # Web UI HTML template
 ├── requirements.txt     # Python dependencies
+├── Dockerfile           # Container image for the web UI
 └── build.bat            # PyInstaller build script (Windows)
 ```
 
