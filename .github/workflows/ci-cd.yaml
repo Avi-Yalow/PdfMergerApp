@@ -36,11 +36,11 @@ jobs:
         run: echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
 
       - name: Build image
-        run: docker build -t myuser/my-app:latest -t myuser/my-app:${IMAGE_TAG} .
+        run: docker build -t ${{ secrets.DOCKER_USER }}/my-app:latest -t ${{ secrets.DOCKER_USER }}/my-app:${IMAGE_TAG} .
 
       - name: Run container test
         run: |
-          docker run -d -p 3000:3000 --name test-container myuser/my-app:latest
+          docker run -d -p 3000:3000 --name test-container ${{ secrets.DOCKER_USER }}/my-app:latest
           sleep 5
           curl -f http://localhost:3000
           docker stop test-container
