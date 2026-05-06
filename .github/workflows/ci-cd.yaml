@@ -41,9 +41,21 @@ jobs:
       - name: Run container test
         run: |
           docker run -d -p 3000:3000 --name test-container ${{ secrets.DOCKER_USER }}/pdfmerger:latest
-          sleep 5
-          curl -f http://localhost:3000
-          docker stop test-container
+      
+          for i in {1..12}; do
+            if curl -fsS http://localhost:3000; then
+              echo "Container is healthy"
+              docker stop test-container
+              exit 0
+            fi
+            echo "Waiting for app to become ready... attempt $i"
+            sleep 5
+          done
+      
+          echo "Container failed health check"
+          docker logs test-container || true
+          docker stop test-container || true
+          exit 1
 
       - name: Login to Docker Hub
         run: echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
