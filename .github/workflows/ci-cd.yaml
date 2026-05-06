@@ -65,5 +65,8 @@ jobs:
           docker push ${{ secrets.DOCKER_USER }}/pdfmerger:latest
           docker push ${{ secrets.DOCKER_USER }}/pdfmerger:${IMAGE_TAG}
 
+      - name: Wait for Docker Hub to propagate
+        run: sleep 30
+
       - name: Deploy to Render
         run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
