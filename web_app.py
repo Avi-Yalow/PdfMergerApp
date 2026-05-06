@@ -60,11 +60,24 @@ def merge():
         app.logger.exception("Merge failed")
         return jsonify(error="Merge failed. Please ensure all uploaded files are valid PDFs."), 500
 
+    raw_name = request.form.get("filename", "").strip()
+    if raw_name:
+        # Take only the basename to strip any directory component, then extract the
+        # stem so we can control the extension (prevents double-extension attacks).
+        stem = Path(raw_name).stem
+        # Allow only word characters, hyphens and spaces; dots are excluded to
+        # prevent double-extension filenames like "report.exe.pdf".
+        stem = re.sub(r'[^\w\- ]', '', stem)
+        stem = re.sub(r'\s+', '_', stem).strip('_') or "merged"
+        name = stem + ".pdf"
+    else:
+        name = "merged.pdf"
+
     return send_file(
         merged,
         mimetype="application/pdf",
         as_attachment=True,
-        download_name="merged.pdf",
+        download_name=name,
     )
 
 

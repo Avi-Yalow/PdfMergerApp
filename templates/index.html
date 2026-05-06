@@ -286,6 +286,12 @@
 
         <div class="file-list" id="merge-file-list"></div>
 
+        <div class="form-group" id="merge-filename-group" style="display:none">
+          <label class="form-label-sm" for="merge-filename">Output filename</label>
+          <input type="text" class="form-control w-md" id="merge-filename"
+                 placeholder="merged.pdf" maxlength="200" />
+        </div>
+
         <div class="btn-row">
           <button type="submit" class="btn btn-primary" id="merge-btn" disabled>
             ⬇ Merge &amp; Download
@@ -430,7 +436,11 @@ function addMergeFiles(files) {
   files.filter(f => f.name.toLowerCase().endsWith(".pdf")).forEach(f => mergeFiles.push(f));
   renderMergeList();
 }
-function clearMerge() { mergeFiles.length = 0; renderMergeList(); }
+function clearMerge() {
+  mergeFiles.length = 0;
+  document.getElementById("merge-filename").value = "";
+  renderMergeList();
+}
 
 function renderMergeList() {
   const list = document.getElementById("merge-file-list");
@@ -452,6 +462,7 @@ function renderMergeList() {
   });
   document.getElementById("merge-btn").disabled = mergeFiles.length < 2;
   document.getElementById("merge-clear").style.display = mergeFiles.length ? "" : "none";
+  document.getElementById("merge-filename-group").style.display = mergeFiles.length ? "" : "none";
 }
 function moveMerge(i, dir) {
   const j = i + dir;
@@ -472,13 +483,18 @@ async function submitMerge(e) {
   try {
     const fd = new FormData();
     mergeFiles.forEach(f => fd.append("pdfs", f));
+    const rawName = document.getElementById("merge-filename").value.trim();
+    const downloadName = rawName
+      ? (rawName.toLowerCase().endsWith(".pdf") ? rawName : rawName + ".pdf")
+      : "merged.pdf";
+    fd.append("filename", downloadName);
     const res = await fetch("/merge", { method: "POST", body: fd });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
       showToast(d.error || "Merge failed.");
       return;
     }
-    triggerDownload(await res.blob(), "merged.pdf");
+    triggerDownload(await res.blob(), downloadName);
   } catch (err) {
     showToast("Network error: " + err.message);
   } finally {

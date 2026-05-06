@@ -49,6 +49,43 @@ class TestMergeRoute:
         reader = PdfReader(io.BytesIO(resp.data))
         assert len(reader.pages) == 3
 
+    def test_merge_custom_filename(self, client):
+        pdf1 = _make_pdf(1)
+        pdf2 = _make_pdf(1)
+        data = {
+            "pdfs": [(pdf1, "a.pdf"), (pdf2, "b.pdf")],
+            "filename": "my_report.pdf",
+        }
+        resp = client.post("/merge", data=data, content_type="multipart/form-data")
+        assert resp.status_code == 200
+        assert resp.content_type == "application/pdf"
+        assert "my_report.pdf" in resp.headers.get("Content-Disposition", "")
+
+    def test_merge_custom_filename_adds_pdf_extension(self, client):
+        pdf1 = _make_pdf(1)
+        pdf2 = _make_pdf(1)
+        data = {
+            "pdfs": [(pdf1, "a.pdf"), (pdf2, "b.pdf")],
+            "filename": "output",
+        }
+        resp = client.post("/merge", data=data, content_type="multipart/form-data")
+        assert resp.status_code == 200
+        assert "output.pdf" in resp.headers.get("Content-Disposition", "")
+
+    def test_merge_custom_filename_sanitized(self, client):
+        pdf1 = _make_pdf(1)
+        pdf2 = _make_pdf(1)
+        data = {
+            "pdfs": [(pdf1, "a.pdf"), (pdf2, "b.pdf")],
+            "filename": "../../../etc/passwd",
+        }
+        resp = client.post("/merge", data=data, content_type="multipart/form-data")
+        assert resp.status_code == 200
+        disposition = resp.headers.get("Content-Disposition", "")
+        assert "passwd" in disposition
+        assert ".." not in disposition
+        assert "/" not in disposition
+
     def test_merge_fewer_than_two_files(self, client):
         pdf = _make_pdf(1)
         data = {"pdfs": [(pdf, "a.pdf")]}
