@@ -36,11 +36,11 @@ jobs:
         run: echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
 
       - name: Build image
-        run: docker build -t ${{ secrets.DOCKER_USER }}/my-app:latest -t ${{ secrets.DOCKER_USER }}/my-app:${IMAGE_TAG} .
+        run: docker build -t ${{ secrets.DOCKER_USER }}/pdfmerger:latest -t ${{ secrets.DOCKER_USER }}/pdfmerger:${IMAGE_TAG} .
 
       - name: Run container test
         run: |
-          docker run -d -p 3000:3000 --name test-container ${{ secrets.DOCKER_USER }}/my-app:latest
+          docker run -d -p 3000:3000 --name test-container ${{ secrets.DOCKER_USER }}/pdfmerger:latest
           sleep 5
           curl -f http://localhost:3000
           docker stop test-container
@@ -50,8 +50,8 @@ jobs:
 
       - name: Push images
         run: |
-          docker push myuser/my-app:latest
-          docker push myuser/my-app:${IMAGE_TAG}
+          docker push ${{ secrets.DOCKER_USER }}/pdfmerger:latest
+          docker push ${{ secrets.DOCKER_USER }}/pdfmerger:${IMAGE_TAG}
 
       - name: Deploy to Render
         run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
