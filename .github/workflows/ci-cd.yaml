@@ -40,7 +40,7 @@ jobs:
 
       - name: Run container test
         run: |
-          docker run -d -p 3000:3000 --name test-container ${{ secrets.DOCKER_USER }}/pdfmerger:latest
+          docker run -d -p 3000:5000 --name test-container ${{ secrets.DOCKER_USER }}/pdfmerger:latest
       
           for i in {1..12}; do
             if curl -fsS http://localhost:3000; then
